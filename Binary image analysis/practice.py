@@ -12,7 +12,11 @@ masks_external = np.array([
     np.flipud(msk_out_c),
     np.flipud(np.fliplr(msk_out_c))
 ])
+masks_2X = np.array([[[1, 0],
+                             [0, 1]],
 
+                            [[0, 1],
+                            [1, 0]]], 'uint8')
 masks_internal = np.array([np.where(mask == 0, 1, 0) for mask in masks_external])
 
 data = np.load('../numpy_images/ex6.npy')
@@ -33,9 +37,11 @@ for lines in range(np.shape(data)[0] - 1):
             external += 1
         if any(np.array_equal(area, mask) for mask in masks_internal):
             internal += 1
+        if any(np.array_equal(area, mask) for mask in masks_2X):
+            external += 2
 
 
-print((external - internal)/4, external, internal)
+print((external - internal)/4)
 
 plt.figure()
 plt.imshow(data)
