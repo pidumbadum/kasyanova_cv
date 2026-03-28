@@ -30,14 +30,11 @@ for file in folder.iterdir():
         files.append(file)
 
 files.sort(key=lambda x: int(re.findall(r'\d+', x.name)[0]))
-#Точно забуду, поэтому:
-#lambda x: - lambda(безымянная функция) которая получает x, после : идет то, что должна вернуть эта фуцнкция
-# re.findall(r'\d+', x.name)[0]) - поиск по маске всех чисел, взятие первого числа(в дан сл не надо, но на всякий)
-# sort выполняется по результату функции после key=, которая в свою очередь достает первое число из названия файла
 
 all_centers = []
 centers_before = []
 centers_now = [(0, 0), (0, 0), (0, 0)]
+
 labeled_i1 = label(np.load(files[0]))
 for i in range(1, np.max(labeled_i1) + 1):
     centers_before.append(centroid(labeled_i1, i))
@@ -51,10 +48,27 @@ for file in files:
     centers_before = centers_now.copy()
     all_centers.append(centers_now.copy())
 
-for i in range(len(all_centers)):
-    print(all_centers[i])
+#граафик
+plt.figure(figsize=(10, 8))
 
+for zamanavsya in range(len(all_centers[0])):
+    trajectory_y = [frame[zamanavsya][0] for frame in all_centers]
+    trajectory_x = [frame[zamanavsya][1] for frame in all_centers]
 
+    plt.plot(trajectory_x, trajectory_y, marker='o', label=f'Объект {zamanavsya + 1}')
+
+plt.xlabel('фисцтсса')
+plt.ylabel('ордината')
+plt.title('Траектории')
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.show()
+
+#Объяснение на будущее:
+#Точно забуду, поэтому:
+#lambda x: - lambda(безымянная функция) которая получает x, после : идет то, что должна вернуть эта фуцнкция
+# re.findall(r'\d+', x.name)[0]) - поиск по маске всех чисел, взятие первого числа(в дан сл не надо, но на всякий)
+# sort выполняется по результату функции после key=, которая в свою очередь достает первое число из названия файла
 
 #посомотреть последовательный вывод изображений:
 # for file in files:
