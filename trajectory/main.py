@@ -7,6 +7,16 @@ import re
 def distance(p1, p2):
     return ((p2[1] - p1[1]) **2 + (p2[0] - p1[0]) **2)** 0.5
 
+def find_min_distance(point1, array):
+    min_dist = 2 ** 10
+    ind = 0
+    for a in range(len(array)):
+        dist = distance(point1, array[a])
+        if min_dist > dist:
+            min_dist = dist
+            ind = a
+    return ind
+
 def centroid(labeled, lab=1):
     ys, xs = np.where(labeled == lab)
     cy = np.mean(ys)
@@ -25,15 +35,24 @@ files.sort(key=lambda x: int(re.findall(r'\d+', x.name)[0]))
 # re.findall(r'\d+', x.name)[0]) - поиск по маске всех чисел, взятие первого числа(в дан сл не надо, но на всякий)
 # sort выполняется по результату функции после key=, которая в свою очередь достает первое число из названия файла
 
-centers = []
+all_centers = []
+centers_before = []
+centers_now = [(0, 0), (0, 0), (0, 0)]
 labeled_i1 = label(np.load(files[0]))
 for i in range(1, np.max(labeled_i1) + 1):
-    centers.append(centroid(labeled_i1, i))
-
-print(distance(centers[0], centers[1] ))
+    centers_before.append(centroid(labeled_i1, i))
 
 for file in files:
-    pass
+    labeled_imNow = label(np.load(file))
+    for i in range(1, np.max(labeled_imNow) + 1):
+        center = centroid(labeled_imNow, i)
+        index = find_min_distance(center, centers_before)
+        centers_now[index] = center
+    centers_before = centers_now.copy()
+    all_centers.append(centers_now.copy())
+
+for i in range(len(all_centers)):
+    print(all_centers[i])
 
 
 
@@ -50,5 +69,3 @@ for file in files:
 #     plt.pause(0.03)
 #
 # plt.show()
-plt.imshow(labeled_i1)
-plt.show()
