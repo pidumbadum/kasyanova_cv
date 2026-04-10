@@ -1,10 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from skimage import draw
+from scipy import ndimage
+from skimage.measure import label
 import socket
 
 host = "84.237.21.36"
-port = 5151
+port = 5152
 
 def recvall(sock, nbytes):
     data = bytearray()
@@ -15,6 +16,11 @@ def recvall(sock, nbytes):
         data.extend(packet)
     return data
 
+def distance(image):
+    x1, y1 = ndimage.center_of_mass(image==1)
+    x2, y2 = ndimage.center_of_mass(image==2)
+    dist = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
+    return round(dist, 1)
 
 plt.ion()
 plt.figure()
@@ -23,37 +29,19 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     sock.send(b"124ras1")
     print(sock.recv(10))
 
-    sock.send(b'get')
-    bts = recvall(sock, 80004)
-    print(len(bts))
-    beat = b'nope'
+    for _ in range(10):
+        sock.send(b"get")
+        bts = recvall(sock, 40002)
+        im1 = np.frombuffer(bts[2:40002], dtype="uint8")
+        im1 = im1.reshape(bts[0], bts[1])
+        objs = label(im1 > 160)
 
-    while beat != b'yep':
+        sock.send(str(distance(objs)).encode())
+        print(sock.recv(10), "Distance =", str(distance(objs)))
 
-        iml = np.frombuffer(bts[2:40002], dtype = "uint8")
-        iml = iml.reshape(bts[0], bts[1])
-        im2 = np.frombuffer(bts[40004:], dtype = "uint8")
-        im2 = im2.reshape(bts[40002], bts[40003])
-
-        pos1 = np.unravel_index(np.argmax(iml), iml.shape)
-        pos2 = np.unravel_index(np.argmax(im2), im2.shape)
-        result = np.abs(np.array(pos1) - np.array(pos2))
-        sock.send(f'{result[0]} {result[1]}'.encode())
-        print("res:", sock.recv(10))
-
-        plt.clf()
-        plt.subplot(121)
-        plt.imshow(iml)
-        plt.subplot(122)
-        plt.imshow(im2)
-        plt.pause(4)
-
-        sock.send(b'beat')
+        sock.send(b"beat")
         beat = sock.recv(10)
 
-
-
-
-# plt.subplot(121)
-# plt.imshow(image)
-# plt.show()
+        plt.clf()
+        plt.imshow(objs)
+        plt.show()
