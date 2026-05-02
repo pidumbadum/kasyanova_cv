@@ -24,12 +24,21 @@ cv2.setMouseCallback('Image', on_click)
 capture = cv2.VideoCapture(0)
 lower = None
 upper = None
+config_path = save_path/"config.json"
+if config_path.exists():
+    with config_path.open('r') as f:
+        js = json.load(f)
+        if js['lower'] is not None:
+            print('aaaaa')
+            lower = np.array(js['lower'], dtype="u1")
+            upper = np.array(js['upper'], dtype="u1")
 positions =[]
 
 speed = 0
 prev_count = time.time()
 curr_count = time.time()
 d = 6.36 #cm
+print(lower, upper)
 while True:
     ret, frame = capture.read()
     blurred = cv2.GaussianBlur(frame, (11, 11), 0)
@@ -40,8 +49,8 @@ while True:
     if clicked:
         clicked = False
         color = hsv[position[1],position[0]]
-        lower = np.clip(color*0.9, 0,255).astype("u1")
-        upper = np.clip(color*1.1, 0,255).astype("u1")
+        lower = np.clip(color*0.8, 0,255).astype("u1")
+        upper = np.clip(color*1.2, 0,255).astype("u1")
         upper[1] = 255
         upper[2] = 255
     if lower is not None:
@@ -74,6 +83,7 @@ while True:
                 cv2.putText(frame, f'Speed = {speed:.2f}m/s', (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 0))
     cv2.imshow('Image', frame)
 cv2.destroyAllWindows()
+
 
 with (save_path/ "config.json").open('w') as f:
     json.dump({'lower': None if lower is None else lower.tolist(),
