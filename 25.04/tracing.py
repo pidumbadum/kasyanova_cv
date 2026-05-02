@@ -1,5 +1,11 @@
 import cv2
 import numpy as np
+import time
+from math import dist
+import json
+from pathlib import Path
+
+save_path = Path(__file__).parent
 
 cv2.namedWindow('Image', cv2.WINDOW_GUI_NORMAL)
 cv2.namedWindow('Mask', cv2.WINDOW_GUI_NORMAL)
@@ -19,6 +25,11 @@ capture = cv2.VideoCapture(0)
 lower = None
 upper = None
 positions =[]
+
+speed = 0
+prev_count = time.time()
+curr_count = time.time()
+d = 6.36 #cm
 while True:
     ret, frame = capture.read()
     blurred = cv2.GaussianBlur(frame, (11, 11), 0)
@@ -49,5 +60,21 @@ while True:
                     positions.pop(0)
                 for i, position in enumerate(positions[:-1]):
                     cv2.circle(frame, position, i * 2, (0,0, 100 + 155 /len(positions)*i), -1)
+                if len(positions) >= 2:
+                    curr_count = time.time()
+                    delta = curr_count - prev_count
+                    curr_pos = positions[-1]
+                    prev_pos = positions[-2]
+                    distance = dist(curr_pos, prev_pos)
+                    pxl_per_cm = d / (2 *radius)
+                    pxl_per_m = pxl_per_cm / 100
+                    speed = distance/delta * pxl_per_m
+                    prev_count = time.time()
+
+                cv2.putText(frame, f'Speed = {speed:.2f}m/s', (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 0))
     cv2.imshow('Image', frame)
 cv2.destroyAllWindows()
+
+with (save_path/ "config.json").open('w') as f:
+    json.dump({'lower': None if lower is None else lower.tolist(),
+               'upper': None if upper is None else upper.tolist()}, f)
