@@ -50,9 +50,8 @@ while True:
         clicked = False
         color = hsv[position[1],position[0]]
         if lower is not None:
-            
-        lower = np.clip(color*0.85, 0,255).astype("u1")
-        upper = np.clip(color*1.15, 0,255).astype("u1")
+            lower = np.clip(color*0.85, 0,255).astype("u1")
+            upper = np.clip(color*1.15, 0,255).astype("u1")
         upper[1] = 255
         upper[2] = 255
     if lower is not None:
