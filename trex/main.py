@@ -19,7 +19,7 @@ cv2.moveWindow('Main', 50, 50)
 
 struct =  np.ones((5,5), dtype = 'u1')
 game_area = None
-
+trex_box = None
 
 
 with mss.mss() as sct:
@@ -54,11 +54,14 @@ with mss.mss() as sct:
             #нахождение динозавра в процессе игры
             res = cv2.matchTemplate(binary_g, trex_mask, cv2.TM_CCOEFF_NORMED) # вот это двигает по изображению в поисках совпадений
             _, max_val, _, max_loc = cv2.minMaxLoc(res) #а это возвращает самое похожее
-            if max_val > 0.8:
+            if max_val > 0.5:
                 x_trex, y_trex = max_loc
                 h_trex, w_trex = trex_mask.shape
-
-            cv2.rectangle(game_area, (trex_box[0], trex_box[1]), (trex_box[2], trex_box[3]), (0, 255, 0), 2)
+                cv2.rectangle(game_area, (x_trex, y_trex), (x_trex + w_trex, y_trex + h_trex), (0, 255, 0), 2)
+                binary_g[:y_trex +h_trex, :x_trex+ w_trex] = 0
+            
+            if trex_box is not None:
+                cv2.rectangle(game_area, (trex_box[0], trex_box[1]), (trex_box[2], trex_box[3]), 0, 2)
             #cv2.rectangle(game_area, (x_trex, y_trex), (x_trex + w_trex, y_trex + h_trex), (0, 255, 0), 2)
 
             cv2.imshow('Game', game_area)
@@ -84,10 +87,9 @@ with mss.mss() as sct:
                 res = cv2.matchTemplate(binary_g, trex_mask, cv2.TM_CCOEFF_NORMED) # вот это двигает по изображению в поисках совпадений
                 _, max_val, _, max_loc = cv2.minMaxLoc(res) #а это возвращает самое похожее
                 if max_val > 0.6:
-                    x_trex, y_trex = max_loc
-                    h_trex, w_trex = trex_mask.shape
-                    trex_box = np.array((x_trex, y_trex - trex_mask.shape[0], 
-                                         trex_mask.shape[1] * 3.5, y_trex + trex_mask.shape[0]))
+                    x_trex_box, y_trex_box = max_loc
+                    trex_box = np.array((x_trex_box, max(0,y_trex_box - trex_mask.shape[0]), 
+                                         int(trex_mask.shape[1] * 3.5), y_trex_box + trex_mask.shape[0]))
 
 
         current_time = time.time()
