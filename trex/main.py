@@ -81,11 +81,16 @@ with mss.mss() as sct:
             #вторая версия прыжка
             if common_db is not None:
                 common_curr = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 2.7)].copy()
+
+                diff = cv2.bitwise_xor(common_db, common_curr)
+                change_ratio = np.count_nonzero(diff) / diff.size
+                
                 now = time.time()
-                if not(np.array_equiv(common_db, common_curr)) and now - last_jump_time > JUMP_COOLDOWN:
+                if change_ratio > 0.01 and now - last_jump_time > JUMP_COOLDOWN:
                     pyautogui.press('space')
                     last_jump_time = now
-                    common_db = common_curr
+                
+                common_db = common_curr.copy()
                 cv2.imshow('test', common_db)
                     
             #рисую danger box
