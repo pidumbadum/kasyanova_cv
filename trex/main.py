@@ -4,7 +4,6 @@ import time
 import mss
 import pyautogui
 from pathlib import Path
-from math import dist
 
 save_path = Path(__file__).parent
 trex_path = save_path/'trex.npy'
@@ -12,6 +11,7 @@ trex_path = save_path/'trex.npy'
 
 # cv2.namedWindow('Main', cv2.WINDOW_NORMAL)
 cv2.namedWindow('test', cv2.WINDOW_NORMAL)
+cv2.namedWindow('test2', cv2.WINDOW_NORMAL)
 cv2.namedWindow('Game', cv2.WINDOW_NORMAL)
 cv2.moveWindow('Game', 50, 50)
 cv2.namedWindow('mask', cv2.WINDOW_NORMAL)
@@ -21,6 +21,8 @@ struct =  np.ones((3,3), dtype = 'u1')
 game_area = None
 common_db = None
 #попытка обрезать опасную зону до минимума
+heigth_flag = False
+width_flag = False
 y_trex_min = 0
 y_trex_max = 0
 x_db = 0
@@ -77,11 +79,16 @@ with mss.mss() as sct:
                     y_trex_max = y_trex + h_trex #низ тирекса
                     x_db = x_trex + w_trex + 10 #низ тирекса по иксу
                     #срезы
-                    common_db = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 3)].copy()
+                    common_db = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 3.5)].copy()
+                    x_long = x_db + int(common_db.shape[1] * 1.75)
+                    x_shirt = x_db + int(common_db.shape[1] * 0.75)
+                    long_box = binary_g[y_trex_min:y_trex_max, x_db: x_long].copy()
+                    shirt_box= binary_g[y_trex_min:y_trex_max, x_db:x_shirt].copy()
                     #а тут выделяю пространство за для слежки за кактусами
                     cactus_vier = binary_g[:, x_db + common_db.shape[1]:].copy()
                     cactus_vier = cv2.morphologyEx(cactus_vier, cv2.MORPH_CLOSE, struct)
                     smesh = x_db + common_db.shape[1]
+
             if common_db is not None:
                 #Анализ и поиск кактусов
                 curr_cactv =  binary_g[:, x_db + common_db.shape[1]:].copy()
@@ -102,36 +109,71 @@ with mss.mss() as sct:
                         closest_obj = min(prev_objs, key=lambda p: abs(p[0] - xcont)) #опять чудо функция нас спасает 
                         
                     current_objs.append([xcont, ycont, wcont, hcont])
-                    prev_objs = current_objs
 
-                # if current_objs:
-                #     nearest_obj = min(current_objs, key=lambda obj: obj[0])
-                #     width_obj = nearest_obj[2] - nearest_obj[0]
-                #     heigth_obj = nearest_obj[3] - nearest_obj[1]
-                #     if 
+                prev_objs = current_objs
 
-                    
+                width_flag = False
+                heigth_flag = False
+                if current_objs:
+                    nearest = min(current_objs, key=lambda obj: obj[0])
+                    obj_w, obj_h = nearest[2], nearest[3]
+                    if obj_w > w_trex * 1.3: width_flag = True
+                    if obj_h < h_trex * 0.9: heigth_flag = True
 
             #вторая версия прыжка
             if common_db is not None:
-                common_curr = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 3)].copy()
-                diff = cv2.bitwise_xor(common_db, common_curr)
-                change_ratio = np.count_nonzero(diff) / diff.size
-                
+                common_curr = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 3.25)].copy()
+                long_box_curr = binary_g[y_trex_min:y_trex_max, x_db: x_long].copy()
+                shirt_box_curr = binary_g[y_trex_min:y_trex_max, x_db:x_shirt].copy()
                 now = time.time()
-                if change_ratio > 0.01 and now - last_jump_time > JUMP_COOLDOWN:
-                    pyautogui.press('space')
-                    last_jump_time = now
+                if width_flag:
+                    diff = cv2.bitwise_xor(shirt_box, shirt_box_curr)
+                    change_ratio = np.count_nonzero(diff) / diff.size
+                
+                    if change_ratio > 0.02 and now - last_jump_time > JUMP_COOLDOWN:
+                        pyautogui.press('space')
+                        last_jump_time = now
+                    cv2.rectangle(game_area, (x_db, y_trex_min), (y_trex_max, x_shirt), 0, 2 )
+                elif heigth_flag:
+                    diff = cv2.bitwise_xor(long_box, long_box_curr)
+                    change_ratio = np.count_nonzero(diff) / diff.size
+                    
+                    if change_ratio > 0.02 and now - last_jump_time > JUMP_COOLDOWN:
+                        pyautogui.press('space')
+                        last_jump_time = now
+                    cv2.rectangle(game_area, (x_db, y_trex_min), (y_trex_max, x_long), 0, 2)
+                else:
+                    diff = cv2.bitwise_xor(common_db, common_curr)
+                    change_ratio = np.count_nonzero(diff) / diff.size
+                    
+                    if change_ratio > 0.02 and now - last_jump_time > JUMP_COOLDOWN:
+                        pyautogui.press('space')
+                        last_jump_time = now
+                    cv2.rectangle(game_area, (x_db, y_trex_min), (y_trex_max, int(x_db * 3)), 0, 2)
+                    
+                #вот эта штука сама по себе точно работала 
+                # diff = cv2.bitwise_xor(common_db, common_curr)
+                # change_ratio = np.count_nonzero(diff) / diff.size
+                
+                # now = time.time()
+                # if change_ratio > 0.01 and now - last_jump_time > JUMP_COOLDOWN:
+                #     pyautogui.press('space')
+                #     last_jump_time = now
                 
                 common_db = common_curr.copy()
+                long_box = long_box_curr.copy()
+                shirt_box = shirt_box_curr.copy()
 
 
                     
             #рисую danger box
             if common_db is not None:
                 # cv2.rectangle(game_area, (x_db, y_trex_min), (x_db + common_db.shape[1], y_trex_min + common_db.shape[0]), 0, 2)
+                cv2.rectangle(game_area, (x_db, y_trex_min), (y_trex_max, x_long), 0, 2)
+                cv2.rectangle(game_area, (x_db, y_trex_min), (y_trex_max, x_shirt), 0, 2 )
                 cv2.rectangle(game_area, (x_db + common_db.shape[1], 0), (game_area.shape[1], game_area.shape[0]), 0, 2)
-                cv2.imshow('test', cactus_vier)
+                cv2.imshow('test', shirt_box)
+                cv2.imshow('test2', long_box)
                         
 
             cv2.imshow('Game', game_area)
