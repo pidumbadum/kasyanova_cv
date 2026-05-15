@@ -17,7 +17,7 @@ cv2.moveWindow('Game', 50, 50)
 cv2.namedWindow('mask', cv2.WINDOW_NORMAL)
 cv2.moveWindow('mask', 50, 350)
 
-struct =  np.ones((5,5), dtype = 'u1')
+struct =  np.ones((3,3), dtype = 'u1')
 game_area = None
 common_db = None
 #попытка обрезать опасную зону до минимума
@@ -28,7 +28,7 @@ x_db = 0
 last_jump_time = 0.0
 JUMP_COOLDOWN = 0.69 
 
-prev_cacti = []
+prev_objs = None
 
 with mss.mss() as sct:
     monitor = sct.monitors[1]
@@ -82,13 +82,39 @@ with mss.mss() as sct:
                     cactus_vier = binary_g[:, x_db + common_db.shape[1]:].copy()
                     cactus_vier = cv2.morphologyEx(cactus_vier, cv2.MORPH_CLOSE, struct)
                     smesh = x_db + common_db.shape[1]
+            if common_db is not None:
+                #Анализ и поиск кактусов
+                curr_cactv =  binary_g[:, x_db + common_db.shape[1]:].copy()
+                cactus_vier = curr_cactv.copy()
+                #ищуконтуры
+                cactus_vier = cv2.dilate(cactus_vier, struct, iterations=2)
+                cv2.imshow('test', common_db)
+                #А где контур? а тут он
+                contours, _ = cv2.findContours(cactus_vier, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                current_objs = []
+                speed = 0.0
 
+                for cnt in contours: # сначала нашли, теперь перебираем, я уже вижу просивший фпс
+                    xcont, ycont, wcont, hcont = cv2.boundingRect(cnt)
+                    cv2.rectangle(game_area, (smesh + xcont, ycont), (smesh + xcont + wcont, ycont +hcont), 0, 2)
 
-            
+                    if prev_objs:
+                        closest_obj = min(prev_objs, key=lambda p: abs(p[0] - xcont)) #опять чудо функция нас спасает 
+                        
+                    current_objs.append([xcont, ycont, wcont, hcont])
+                    prev_objs = current_objs
+
+                # if current_objs:
+                #     nearest_obj = min(current_objs, key=lambda obj: obj[0])
+                #     width_obj = nearest_obj[2] - nearest_obj[0]
+                #     heigth_obj = nearest_obj[3] - nearest_obj[1]
+                #     if 
+
+                    
+
             #вторая версия прыжка
             if common_db is not None:
                 common_curr = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 3)].copy()
-                curr_cactv =  binary_g[:, x_db + common_db.shape[1]:].copy()
                 diff = cv2.bitwise_xor(common_db, common_curr)
                 change_ratio = np.count_nonzero(diff) / diff.size
                 
@@ -98,18 +124,7 @@ with mss.mss() as sct:
                     last_jump_time = now
                 
                 common_db = common_curr.copy()
-                cactus_vier = curr_cactv.copy()
-                #ищуконтуры
-                cactus_vier = cv2.morphologyEx(cactus_vier, cv2.MORPH_CLOSE, struct)
-                cv2.imshow('test', common_db)
-                #А где контур? а тут он
-                contours, _ = cv2.findContours(cactus_vier, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                objects = []
 
-                for cnt in contours: # сначала нашли, теперь перебираем, я уже вижу просивший фпс
-                    area = cv2.contourArea(cnt)
-                    xcont, ycont, wcont, hcont = cv2.boundingRect(cnt)
-                    cv2.rectangle(game_area, (smesh + xcont, ycont), (smesh + xcont + wcont, ycont +hcont), 0, 2)
 
                     
             #рисую danger box
