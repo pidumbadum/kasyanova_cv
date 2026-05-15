@@ -15,12 +15,13 @@ cv2.namedWindow('test', cv2.WINDOW_NORMAL)
 cv2.namedWindow('Game', cv2.WINDOW_NORMAL)
 cv2.moveWindow('Game', 50, 50)
 cv2.namedWindow('mask', cv2.WINDOW_NORMAL)
-cv2.moveWindow('mask', 100, 50)
-cv2.moveWindow('Main', 50, 50)
+cv2.moveWindow('mask', 50, 250)
+cv2.moveWindow('Main', 0, 50)
 
 struct =  np.ones((5,5), dtype = 'u1')
 game_area = None
 danger_box = None
+curr_box = None
 #попытка обрезать опасную зону до минимума
 y_trex_min = 0
 y_trex_max = 0
@@ -33,12 +34,19 @@ with mss.mss() as sct:
     else:
         screen1 = np.array(sct.grab(monitor))[:, :, :-1]
         screen1 = cv2.cvtColor(screen1, cv2.COLOR_RGB2GRAY)
+
+        #находим трекса впервые
         x1, y1, w1, h1 = cv2.selectROI('roi', screen1)
         if w1 > 0 and h1 > 0: 
             trex_mask = screen1[y1:y1+h1, x1:x1+w1]
             _, trex_mask = cv2.threshold(trex_mask, 120, 255, cv2.THRESH_BINARY_INV)
             trex_mask = cv2.morphologyEx(trex_mask, cv2.MORPH_OPEN, struct)
-            np.save(save_path/'trex.npy', trex_mask)
+            coords = np.where(trex_mask > 0)     
+        if len(coords[0]) != 0:
+            y_min, y_max = coords[0].min(), coords[0].max()
+            x_min, x_max = coords[1].min(), coords[1].max()
+            trex_mask = trex_mask[y_min:y_max + 1, x_min:x_max + 1]       
+        np.save(save_path/'trex.npy', trex_mask)
         cv2.destroyWindow('roi')
 
     prev_time = time.time()
@@ -61,19 +69,20 @@ with mss.mss() as sct:
                 x_trex, y_trex = max_loc #левые верхние координаты
                 h_trex, w_trex = trex_mask.shape
                 cv2.rectangle(game_area, (x_trex, y_trex), (x_trex + w_trex, y_trex + h_trex), 0, 2)
-                binary_g[:y_trex +h_trex, :x_trex+ w_trex] = 0
+                # binary_g[:y_trex +h_trex, :x_trex+ w_trex] = 0
                 #Определяю пространство danger_box
                 if y_trex > y_trex_min or x_trex + w_trex > x_db: 
                     y_trex_min = y_trex 
                     y_trex_max = y_trex + h_trex
-                    x_db = x_trex + w_trex
-                    danger_box = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 2.7)].copy()
+                    x_db = x_trex + w_trex + 5
+                    danger_box = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 3)].copy()
             
             #вторая версия прыжка
             if danger_box is not None:
-                if not (np.array_equal(danger_box, binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 2.7)])):
+                curr_box = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 3)].copy()
+                if not (np.array_equal(danger_box, curr_box)):
                     pyautogui.press('space')
-                    danger_box = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 2.7)].copy()
+                    danger_box = curr_box
                     cv2.imshow('test', danger_box)
 
             #рисую danger box
