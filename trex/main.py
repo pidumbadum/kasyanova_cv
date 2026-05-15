@@ -19,7 +19,7 @@ cv2.moveWindow('mask', 50, 350)
 
 struct =  np.ones((5,5), dtype = 'u1')
 game_area = None
-danger_box = None
+common_db = None
 #попытка обрезать опасную зону до минимума
 y_trex_min = 0
 y_trex_max = 0
@@ -68,47 +68,31 @@ with mss.mss() as sct:
                 x_trex, y_trex = max_loc #левые верхние координаты
                 h_trex, w_trex = trex_mask.shape
                 cv2.rectangle(game_area, (x_trex, y_trex), (x_trex + w_trex, y_trex + h_trex), 0, 2)
-                # binary_g[:y_trex +h_trex + 1, :x_trex+ w_trex+ 1] = 0
+
                 #Определяю пространство danger_box
                 if y_trex > y_trex_min or x_trex + w_trex > x_db: 
-                    y_trex_min = y_trex 
-                    y_trex_max = y_trex + h_trex
-                    x_db = x_trex + w_trex + 10
-                    y_long_db = y_trex_min + int(h_trex * 0.25)
+                    y_trex_min = y_trex #Верх бошки
+                    y_trex_max = y_trex + h_trex #низ тирекса
+                    x_db = x_trex + w_trex + 10 #низ тирекса по иксу
                     #срезы
                     common_db = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 2.7)].copy()
-                    danger_box = binary_g[y_trex_min:y_trex_max, x_db: x_db + int(common_db.shape[1] * 0.75)].copy()
-                    long_danger_box = binary_g[y_long_db:y_trex_max, x_db: x_db + common_db.shape[1]].copy()
-                    #подсчет препятсвий 
-                    near_count = np.count_nonzero(danger_box)
-                    far_count  = np.count_nonzero(long_danger_box)
+
             
             #вторая версия прыжка
-            if danger_box is not None:
-                common_curr = np.count_nonzero(binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 2.7)].copy())
-                curr_nc = np.count_nonzero(binary_g[y_trex_min:y_trex_max, x_db: x_db + int(common_db.shape[1] * 0.75)].copy())
-                curr_fc  = np.count_nonzero(binary_g[y_long_db:y_trex_max, x_db: x_db + common_db.shape[1]].copy())
-
+            if common_db is not None:
+                common_curr = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 2.7)].copy()
                 now = time.time()
-                if near_count != curr_nc and now - last_jump_time > JUMP_COOLDOWN:
+                if not(np.array_equiv(common_db, common_curr)) and now - last_jump_time > JUMP_COOLDOWN:
                     pyautogui.press('space')
-                    near_count = curr_nc
                     last_jump_time = now
-                elif far_count != curr_fc and curr_fc <= common_curr and now - last_jump_time > JUMP_COOLDOWN:
-                    pyautogui.press('space')
-                    far_count = curr_fc
-                    last_jump_time = now
-                cv2.imshow('test', long_danger_box)
+                    common_db = common_curr
+                cv2.imshow('test', common_db)
                     
             #рисую danger box
-            if danger_box is not None:
+            if common_db is not None:
                 cv2.rectangle(game_area, (x_db, y_trex_min), (x_db + common_db.shape[1], y_trex_min + common_db.shape[0]), 0, 2)
-                cv2.rectangle(game_area, (x_db, y_trex_min), (x_db + danger_box.shape[1], y_trex_min + danger_box.shape[0]), 0, 2)
-                cv2.rectangle(game_area, (x_db, y_long_db), (x_db + long_danger_box.shape[1], y_long_db + long_danger_box.shape[0]), 0, 2)
+                cv2.imshow('test', common_db)
                         
-
-            #cv2.rectangle(game_area, (x_trex, y_trex), (x_trex + w_trex, y_trex + h_trex), (0, 255, 0), 2)
-
 
             cv2.imshow('Game', game_area)
             cv2.imshow('mask', binary_g)
