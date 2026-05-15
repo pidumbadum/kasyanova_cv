@@ -28,6 +28,8 @@ x_db = 0
 last_jump_time = 0.0
 JUMP_COOLDOWN = 0.69 
 
+prev_cacti = []
+
 with mss.mss() as sct:
     monitor = sct.monitors[1]
     if trex_path.exists():
@@ -75,13 +77,18 @@ with mss.mss() as sct:
                     y_trex_max = y_trex + h_trex #низ тирекса
                     x_db = x_trex + w_trex + 10 #низ тирекса по иксу
                     #срезы
-                    common_db = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 2.7)].copy()
+                    common_db = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 3)].copy()
+                    #а тут выделяю пространство за для слежки за кактусами
+                    cactus_vier = binary_g[:, x_db + common_db.shape[1]:].copy()
+                    cactus_vier = cv2.morphologyEx(cactus_vier, cv2.MORPH_CLOSE, struct)
+                    smesh = x_db + common_db.shape[1]
+
 
             
             #вторая версия прыжка
             if common_db is not None:
-                common_curr = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 2.7)].copy()
-
+                common_curr = binary_g[y_trex_min:y_trex_max, x_db:int(x_db * 3)].copy()
+                curr_cactv =  binary_g[:, x_db + common_db.shape[1]:].copy()
                 diff = cv2.bitwise_xor(common_db, common_curr)
                 change_ratio = np.count_nonzero(diff) / diff.size
                 
@@ -91,12 +98,25 @@ with mss.mss() as sct:
                     last_jump_time = now
                 
                 common_db = common_curr.copy()
+                cactus_vier = curr_cactv.copy()
+                #ищуконтуры
+                cactus_vier = cv2.morphologyEx(cactus_vier, cv2.MORPH_CLOSE, struct)
                 cv2.imshow('test', common_db)
+                #А где контур? а тут он
+                contours, _ = cv2.findContours(cactus_vier, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                objects = []
+
+                for cnt in contours: # сначала нашли, теперь перебираем, я уже вижу просивший фпс
+                    area = cv2.contourArea(cnt)
+                    xcont, ycont, wcont, hcont = cv2.boundingRect(cnt)
+                    cv2.rectangle(game_area, (smesh + xcont, ycont), (smesh + xcont + wcont, ycont +hcont), 0, 2)
+
                     
             #рисую danger box
             if common_db is not None:
-                cv2.rectangle(game_area, (x_db, y_trex_min), (x_db + common_db.shape[1], y_trex_min + common_db.shape[0]), 0, 2)
-                cv2.imshow('test', common_db)
+                # cv2.rectangle(game_area, (x_db, y_trex_min), (x_db + common_db.shape[1], y_trex_min + common_db.shape[0]), 0, 2)
+                cv2.rectangle(game_area, (x_db + common_db.shape[1], 0), (game_area.shape[1], game_area.shape[0]), 0, 2)
+                cv2.imshow('test', cactus_vier)
                         
 
             cv2.imshow('Game', game_area)
